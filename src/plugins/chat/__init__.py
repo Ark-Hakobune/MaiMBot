@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from nonebot import get_driver, on_message, on_notice, require
-from nonebot.adapters.onebot.v11 import Bot, MessageEvent, NoticeEvent
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, NoticeEvent, GroupMessageEvent
 from nonebot.typing import T_State
 
 from ..moods.moods import MoodManager  # 导入情绪管理器
@@ -17,6 +17,7 @@ from .chat_stream import chat_manager
 from ..memory_system.memory import hippocampus
 from .message_sender import message_manager, message_sender
 from .storage import MessageStorage
+from .topic_identifier import topic_identifier  # 导入话题识别器
 from src.common.logger import get_module_logger
 
 logger = get_module_logger("chat_init")
@@ -55,6 +56,11 @@ async def start_background_tasks():
     mood_manager.start_mood_update(update_interval=global_config.mood_update_interval)
     logger.success("情绪管理器启动成功")
 
+    # 启动话题识别器
+    logger.info("正在启动话题识别器...")
+    await topic_identifier.start_monitoring()
+    logger.success("话题识别器启动成功")
+
     # 只启动表情包管理任务
     asyncio.create_task(emoji_manager.start_periodic_check(interval_MINS=global_config.EMOJI_CHECK_INTERVAL))
     await bot_schedule.initialize()
@@ -92,11 +98,14 @@ async def _(bot: Bot):
 
 @msg_in.handle()
 async def _(bot: Bot, event: MessageEvent, state: T_State):
-    # 处理合并转发消息
-    if "forward" in event.message:
-        await chat_bot.handle_forward_message(event, bot)
-    else:
-        await chat_bot.handle_message(event, bot)
+
+    # 先传递给话题识别器处理群组消息
+    if isinstance(event, GroupMessageEvent):
+        await topic_identifier.on_group_message(event)
+
+    # 然后交给机器人处理
+    await chat_bot.handle_message(event, bot)
+
 
 
 @notice_matcher.handle()

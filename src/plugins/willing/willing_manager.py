@@ -30,16 +30,16 @@ def init_willing_manager() -> Optional[object]:
 
     if mode == "classical":
         logger.info("使用经典回复意愿管理器")
-        return ClassicalWillingManager()
+        return DynamicWillingManager()
     elif mode == "dynamic":
         logger.info("使用动态回复意愿管理器")
         return DynamicWillingManager()
     elif mode == "custom":
         logger.warning(f"自定义的回复意愿管理器模式: {mode}")
-        return CustomWillingManager()
+        return DynamicWillingManager()
     else:
         logger.warning(f"未知的回复意愿管理器模式: {mode}, 将使用经典模式")
-        return ClassicalWillingManager()
+        return DynamicWillingManager()
 
 
 # 全局willing_manager对象
