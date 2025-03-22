@@ -3,17 +3,8 @@ import random
 import time
 import math
 from typing import Dict
-<<<<<<< HEAD
-from src.common.logger import get_module_logger
-from ..chat.config import global_config
-from ..chat.chat_stream import ChatStream
-
-logger = get_module_logger("mode_dynamic")
-
-
-=======
 from loguru import logger
-
+from ...common.database import db
 
 from ..chat.config import global_config
 from ..chat.chat_stream import ChatStream
@@ -57,7 +48,6 @@ def apply_s_curve(current, target, factor=0.1):
         change = -change
     return current + change
 
->>>>>>> 4453c8b ('合并口袋意愿文件')
 class WillingManager:
     def __init__(self):
         self.chat_reply_willing: Dict[str, float] = {}  # 存储每个聊天流的回复意愿
@@ -94,6 +84,9 @@ class WillingManager:
         self._cold_group_check_task = None  # 冷群检测任务
         self._started = False
 
+        #分享意愿
+        self.daily_share_wiling: Dict[str, float] = {}
+        
     async def _decay_reply_willing(self):
         """定期衰减回复意愿"""
         while True:
@@ -112,11 +105,6 @@ class WillingManager:
                     # 确保意愿在合理区间内
                     self.chat_reply_willing[chat_id] = max(0.5, min(1.2, new_willing))
                 else:
-<<<<<<< HEAD
-                    # 低回复意愿期内正常衰减
-                    self.chat_reply_willing[chat_id] = max(0, self.chat_reply_willing[chat_id] * 0.8)
-
-=======
                     # 低回复意愿期内保持高意愿
                     target_willing = random.uniform(0.7, 1.1)  # 高意愿，而不是过低
                     # 应用S曲线平滑变化
@@ -133,19 +121,13 @@ class WillingManager:
                     # 最后确保意愿在全局设定的区间内
                     self.chat_reply_willing[chat_id] = max(WILLING_RANGE_MIN, min(WILLING_RANGE_MAX, self.chat_reply_willing[chat_id]))
                 
->>>>>>> 4453c8b ('合并口袋意愿文件')
     async def _mode_switch_check(self):
         """定期检查是否需要切换回复意愿模式"""
         while True:
             current_time = time.time()
             await asyncio.sleep(10)  # 每10秒检查一次
-<<<<<<< HEAD
 
-            for chat_id in self.chat_high_willing_mode:
-=======
-            
             for chat_id in list(self.chat_high_willing_mode.keys()):
->>>>>>> 4453c8b ('合并口袋意愿文件')
                 last_change_time = self.chat_last_mode_change.get(chat_id, 0)
                 is_high_mode = self.chat_high_willing_mode.get(chat_id, False)
 
@@ -154,23 +136,15 @@ class WillingManager:
                 if is_high_mode:
                     duration = self.chat_high_willing_duration.get(chat_id, 180)  # 使用已存储的持续时间或默认3分钟
                 else:
-<<<<<<< HEAD
-                    duration = self.chat_low_willing_duration.get(chat_id, random.randint(300, 1200))  # 默认5-20分钟
-
-=======
                     duration = self.chat_low_willing_duration.get(chat_id, 300)  # 使用已存储的持续时间或默认5分钟
                 
->>>>>>> 4453c8b ('合并口袋意愿文件')
                 # 检查是否需要切换模式
                 if current_time - last_change_time > duration:
                     self._switch_willing_mode(chat_id)
                 elif not is_high_mode and random.random() < 0.03:  # 降低随机切换概率到3%
                     # 低回复意愿期有小概率随机切换到高回复期
                     self._switch_willing_mode(chat_id)
-<<<<<<< HEAD
 
-=======
-                
                 # 更新模式切换的过渡状态
                 transition = self.chat_mode_transition.get(chat_id, 1.0)
                 if is_high_mode and transition < 1.0:
@@ -180,18 +154,11 @@ class WillingManager:
                     # 平滑过渡到低回复期
                     self.chat_mode_transition[chat_id] = max(0.0, transition - 0.1)
                 
->>>>>>> 4453c8b ('合并口袋意愿文件')
                 # 检查对话上下文状态是否需要重置
                 last_reply_time = self.chat_last_reply_time.get(chat_id, 0)
                 if current_time - last_reply_time > 300:  # 5分钟无交互，重置对话上下文
                     self.chat_conversation_context[chat_id] = False
-<<<<<<< HEAD
 
-    def _switch_willing_mode(self, chat_id: str):
-        """切换聊天流的回复意愿模式"""
-        is_high_mode = self.chat_high_willing_mode.get(chat_id, False)
-
-=======
                     # 重置连续回复计数
                     self.chat_consecutive_replies[chat_id] = 0
     
@@ -202,8 +169,7 @@ class WillingManager:
         # 初始化过渡状态
         if chat_id not in self.chat_mode_transition:
             self.chat_mode_transition[chat_id] = 1.0 if is_high_mode else 0.0
-        
->>>>>>> 4453c8b ('合并口袋意愿文件')
+
         if is_high_mode:
             # 从高回复期切换到低回复期
             self.chat_high_willing_mode[chat_id] = False
@@ -236,13 +202,10 @@ class WillingManager:
         current_time = time.time()
         
         if chat_id not in self.chat_reply_willing:
-<<<<<<< HEAD
-            self.chat_reply_willing[chat_id] = 0.1
 
-=======
             self.chat_reply_willing[chat_id] = 0.3
         
->>>>>>> 4453c8b ('合并口袋意愿文件')
+
         if chat_id not in self.chat_high_willing_mode:
             self.chat_high_willing_mode[chat_id] = False
             self.chat_last_mode_change[chat_id] = current_time
@@ -253,20 +216,7 @@ class WillingManager:
 
         if chat_id not in self.chat_conversation_context:
             self.chat_conversation_context[chat_id] = False
-<<<<<<< HEAD
 
-    async def change_reply_willing_received(
-        self,
-        chat_stream: ChatStream,
-        topic: str = None,
-        is_mentioned_bot: bool = False,
-        config=None,
-        is_emoji: bool = False,
-        interested_rate: float = 0,
-        sender_id: str = None,
-    ) -> float:
-        """改变指定聊天流的回复意愿并返回回复概率"""
-=======
             
         if chat_id not in self.chat_consecutive_replies:
             self.chat_consecutive_replies[chat_id] = 0
@@ -326,16 +276,14 @@ class WillingManager:
         else:
             self.set_emoji_reply_mode(chat_stream, False)
             
->>>>>>> 4453c8b ('合并口袋意愿文件')
+
         # 获取或创建聊天流
         stream = chat_stream
         chat_id = stream.stream_id
         current_time = time.time()
 
         self._ensure_chat_initialized(chat_id)
-<<<<<<< HEAD
 
-=======
         
         # 更新群组活跃度信息
         if chat_stream.group_info and sender_id:
@@ -346,8 +294,7 @@ class WillingManager:
         if current_time - last_reply_time > 30:  # 30秒内没有新回复，重置连续回复计数
             self.chat_consecutive_replies[chat_id] = 0
             logger.debug(f"重置连续回复计数 - 聊天流 {chat_id}")
-        
->>>>>>> 4453c8b ('合并口袋意愿文件')
+
         # 增加消息计数
         self.chat_msg_count[chat_id] = self.chat_msg_count.get(chat_id, 0) + 1
 
@@ -356,24 +303,12 @@ class WillingManager:
         transition = self.chat_mode_transition.get(chat_id, 1.0 if is_high_mode else 0.0)
         msg_count = self.chat_msg_count.get(chat_id, 0)
         in_conversation_context = self.chat_conversation_context.get(chat_id, False)
-<<<<<<< HEAD
 
-=======
         consecutive_replies = self.chat_consecutive_replies.get(chat_id, 0)
-        
->>>>>>> 4453c8b ('合并口袋意愿文件')
+
         # 检查是否是对话上下文中的追问
         last_sender = self.chat_last_sender_id.get(chat_id, "")
-<<<<<<< HEAD
 
-        # 如果是同一个人在短时间内（2分钟内）发送消息，且消息数量较少（<=5条），视为追问
-        if sender_id and sender_id == last_sender and current_time - last_reply_time < 120 and msg_count <= 5:
-            in_conversation_context = True
-            self.chat_conversation_context[chat_id] = True
-            logger.debug("检测到追问 (同一用户), 提高回复意愿")
-            current_willing += 0.3
-
-=======
         is_follow_up_question = False
         
         # 追问检测逻辑
@@ -411,7 +346,6 @@ class WillingManager:
                 logger.debug(f"检测到对话延续 (不同用户), 轻微提高回复意愿到 {current_willing:.2f}")
             logger.debug(f"检测到对话延续 (不同用户), 保持对话上下文")
         
->>>>>>> 4453c8b ('合并口袋意愿文件')
         # 特殊情况处理
         if is_mentioned_bot:
             # 被提及时立即切换到高回复期并增加回复意愿
@@ -424,20 +358,7 @@ class WillingManager:
             current_willing = apply_s_curve(current_willing, 1.2, 0.8)
             in_conversation_context = True
             self.chat_conversation_context[chat_id] = True
-<<<<<<< HEAD
-            logger.debug(f"被提及, 当前意愿: {current_willing}")
 
-        if is_emoji:
-            current_willing *= 0.1
-            logger.debug(f"表情包, 当前意愿: {current_willing}")
-
-        # 根据话题兴趣度适当调整
-        if interested_rate > 0.5:
-            current_willing += (interested_rate - 0.5) * 0.5
-
-        # 根据当前模式计算回复概率
-=======
-            
             # 被提及时重置连续回复计数，允许新的对话开始
             self.chat_consecutive_replies[chat_id] = 0
             logger.debug(f"被提及, 当前意愿: {current_willing}, 重置连续回复计数, 切换到高回复期")
@@ -488,25 +409,9 @@ class WillingManager:
         current_willing = max(0.3, min(1.2, current_willing))
             
         # 根据当前模式和过渡状态计算回复概率 - 这是主要控制回复率的因素
->>>>>>> 4453c8b ('合并口袋意愿文件')
         base_probability = 0.0
 
         if in_conversation_context:
-<<<<<<< HEAD
-            # 在对话上下文中，降低基础回复概率
-            base_probability = 0.5 if is_high_mode else 0.25
-            logger.debug(f"处于对话上下文中，基础回复概率: {base_probability}")
-        elif is_high_mode:
-            # 高回复周期：4-8句话有50%的概率会回复一次
-            base_probability = 0.50 if 4 <= msg_count <= 8 else 0.2
-        else:
-            # 低回复周期：需要最少15句才有30%的概率会回一句
-            base_probability = 0.30 if msg_count >= 15 else 0.03 * min(msg_count, 10)
-
-        # 考虑回复意愿的影响
-        reply_probability = base_probability * current_willing
-
-=======
             # 在对话上下文中的基础概率，考虑过渡状态
             high_prob = 0.5  # 高回复期基础概率提高
             low_prob = 0.2   # 低回复期基础概率降低
@@ -569,24 +474,11 @@ class WillingManager:
                 reply_probability = min(reply_probability * boost_factor, 0.8)
                 logger.debug(f"检测到冷群 {group_id}，提高回复概率到: {reply_probability:.2f}, 恢复状态: {recovery_state:.2f}")
         
->>>>>>> 4453c8b ('合并口袋意愿文件')
         # 检查群组权限（如果是群聊）
         if chat_stream.group_info and config:
             if chat_stream.group_info.group_id in config.talk_frequency_down_groups:
                 reply_probability = reply_probability / global_config.down_frequency_rate
 
-<<<<<<< HEAD
-        # 限制最大回复概率
-        reply_probability = min(reply_probability, 0.75)  # 设置最大回复概率为75%
-        if reply_probability < 0:
-            reply_probability = 0
-
-        # 记录当前发送者ID以便后续追踪
-        if sender_id:
-            self.chat_last_sender_id[chat_id] = sender_id
-
-        self.chat_reply_willing[chat_id] = min(current_willing, 3.0)
-=======
         # 应用概率放大系数和增减值
         if PROBABILITY_AMPLIFIER_ENABLED:
             # 首先应用倍数
@@ -627,7 +519,6 @@ class WillingManager:
         # 最终限制回复意愿范围
         self.chat_reply_willing[chat_id] = min(max(current_willing, WILLING_RANGE_MIN), WILLING_RANGE_MAX)
         
->>>>>>> 4453c8b ('合并口袋意愿文件')
         return reply_probability
 
     def change_reply_willing_sent(self, chat_stream: ChatStream):
@@ -637,15 +528,11 @@ class WillingManager:
             chat_id = stream.stream_id
             self._ensure_chat_initialized(chat_id)
             current_willing = self.chat_reply_willing.get(chat_id, 0)
-<<<<<<< HEAD
 
-=======
-            
             # 增加连续回复计数
             self.chat_consecutive_replies[chat_id] = self.chat_consecutive_replies.get(chat_id, 0) + 1
             logger.debug(f"增加连续回复计数到 {self.chat_consecutive_replies[chat_id]} - 聊天流 {chat_id}")
             
->>>>>>> 4453c8b ('合并口袋意愿文件')
             # 回复后减少回复意愿
             self.chat_reply_willing[chat_id] = max(0.0, current_willing - 0.3)
 
@@ -657,11 +544,6 @@ class WillingManager:
 
             # 重置消息计数
             self.chat_msg_count[chat_id] = 0
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> 4453c8b ('合并口袋意愿文件')
     def change_reply_willing_not_sent(self, chat_stream: ChatStream):
         """决定不回复后提高聊天流的回复意愿"""
         stream = chat_stream
@@ -687,10 +569,7 @@ class WillingManager:
         """发送消息后提高聊天流的回复意愿"""
         # 由于已经在sent中处理，这个方法保留但不再需要额外调整
         pass
-<<<<<<< HEAD
 
-=======
-        
     async def _cleanup_inactive_chats(self):
         """定期清理长时间不活跃的聊天流数据"""
         while True:
@@ -789,7 +668,6 @@ class WillingManager:
         self._started = False
         logger.debug("已停止所有WillingManager任务")
         
->>>>>>> 4453c8b ('合并口袋意愿文件')
     async def ensure_started(self):
         """确保所有任务已启动"""
         if not self._started:
@@ -1111,6 +989,74 @@ class WillingManager:
             
         return intersection / union
 
+
+    async def check_daily_share_wiling(self, chat_stream: ChatStream) -> float:
+        """检查群聊消息活跃度，决定是否提高分享日常意愿
+            目前仅支持群聊主动发起聊天，私聊不支持
+        Args:
+            chat_stream: 聊天流对象, 分享意愿不依赖聊天内容，只与群聊活跃度相关
+
+        Returns:
+            float: 分享意愿值
+        """
+        if not chat_stream or not chat_stream.group_info:
+            return 0.0
+
+        try:
+            # 获取24小时前的时间戳
+            one_day_ago = int(time.time()) - 86400  # 24小时 = 86400秒
+
+            # 从数据库查询24小时内的总消息数
+            daily_messages = list(db.messages.find({
+                "chat_id": chat_stream.stream_id,
+                "time": {"$gte": one_day_ago}
+            }))
+
+            # 如果24小时内消息数不超过100，不激活分享意愿
+            # 仅统计bot运行期间的消息
+            # 暂时不启用，配置文档指定群聊分享功能是否开启
+            # if len(daily_messages) <= 100:
+            #     logger.debug(f"群{chat_stream.group_info.group_id}在24小时内消息数{len(daily_messages)}条，小于阈值，鉴定为不活跃群，不激活分享意愿")
+            #     self.daily_share_wiling[chat_stream.stream_id] = 0
+            #     return 0.0
+
+            # 获取60分钟前的时间戳
+            thirty_minutes_ago = int(time.time()) - 36
+
+            # 从数据库查询最近60分钟的消息
+            recent_messages = list(db.messages.find({
+                "chat_id": chat_stream.stream_id,
+                "time": {"$gte": thirty_minutes_ago}
+            }))
+
+            # 如果没有最近消息，大幅提高分享意愿
+            if not recent_messages:
+                share_willing = self.daily_share_wiling.get(chat_stream.stream_id, global_config.daily_share_willing)
+                new_willing = min(0.6, max(0.3, share_willing + 0.2))
+                self.daily_share_wiling[chat_stream.stream_id] = new_willing
+                logger.info(f"群{chat_stream.group_info.group_id}最近60分钟无消息，提高分享意愿至{new_willing}")
+                return new_willing
+
+            # 如果有消息，但消息数量很少（比如少于3条），适度提高意愿
+            if len(recent_messages) < 3:
+                share_willing = self.daily_share_wiling.get(chat_stream.stream_id, global_config.daily_share_willing)
+                new_willing = min(0.4, max(0.2, share_willing + 0.1))
+                self.daily_share_wiling[chat_stream.stream_id] = new_willing
+                logger.info(f"群{chat_stream.group_info.group_id}最近60分钟消息较少，适度提高分享意愿至{new_willing}")
+                return new_willing
+
+            # 消息活跃度正常，保持当前意愿
+            logger.debug(
+                f"群{chat_stream.group_info.group_id}消息活跃度正常，保持分享意愿{self.daily_share_wiling.get(chat_stream.stream_id, global_config.daily_share_willing)}")
+            return self.daily_share_wiling.get(chat_stream.stream_id, global_config.daily_share_willing)
+
+        except Exception as e:
+            logger.error(f"检查群聊活跃度时出错: {str(e)}")
+            return global_config.daily_share_willing  # 出错时返回基础分享意愿
+
+    async def reset_daily_share_wiling(self, chat_stream: ChatStream) -> float:
+        """重置分享意愿"""
+        self.daily_share_wiling[chat_stream.stream_id] = 0
 
 # 创建全局实例
 willing_manager = WillingManager()
