@@ -77,10 +77,9 @@ class TopicIdentifier:
     async def identify_topic_llm(self, text: str) -> Optional[List[str]]:
         """识别消息主题，返回主题列表"""
         prompt = f"""判断这条消息的主题，如果没有明显主题请回复"无主题"，要求：
-1. 主题通常2-4个字，必须简短，要求精准概括，不要太具体。
-2. 建议给出多个主题，之间用英文逗号分割。只输出主题本身就好，不要有前后缀。
-
-消息内容：{text}"""
+                1. 主题通常2-4个字，必须简短，要求精准概括，不要太具体。
+                2. 建议给出多个主题，之间用英文逗号分割。只输出主题本身就好，不要有前后缀。
+                消息内容：{text}"""
 
 
         topic, _ = await self.llm_topic_judge.generate_response(prompt)
