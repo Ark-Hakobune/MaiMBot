@@ -7,13 +7,14 @@ from loguru import logger
 
 from nonebot import get_driver
 from .config import global_config
-from ..willing import willing_manager
+from ..willing.willing_manager import willing_manager
 from .message import Message, MessageSending, MessageSet
 from .message_sender import message_manager
 from .message_base import UserInfo, GroupInfo, Seg
 from .chat_stream import chat_manager
 from ..schedule.schedule_generator import bot_schedule
 from ..models.utils_model import LLM_request
+from .utils import process_llm_response,calculate_typing_time
 from .message_cq import (
     MessageRecvCQ,
 )
@@ -61,8 +62,7 @@ class Daily_Sharer:
                         )
 
                         # 检查分享意愿
-                        share_willing = await willing_manager.check_daily_share_wiling(chat_stream)
-
+                        share_willing = await willing_manager.check_daily_share_willing(chat_stream)
                         # 生成随机数并与意愿比较
                         if random.random() < share_willing:
                             try:
@@ -84,32 +84,67 @@ class Daily_Sharer:
 
                                 if content:
                                     # 创建消息段
+                                    processed_content = process_llm_response(content)
+                                    logger.error(f"当前生成内容: {content}")
                                     message_segment = Seg(type="text", data=content)
 
                                     message_set = MessageSet(
                                         chat_stream=chat_stream,
                                         message_id=message.message_info.message_id
                                     )
-
-                                    # 创建发送消息对象
-                                    bot_message = MessageSending(
-                                        message_id=message.message_info.message_id,
-                                        chat_stream=chat_stream,
-                                        bot_user_info=bot_user_info,
-                                        sender_info=bot_user_info,
-                                        message_segment=message_segment,
-                                        reply=None,
-                                        is_head=True,
-                                        is_emoji=False
-                                    )
-                                    await bot_message.process()
-                                    message_set.add_message(bot_message)
+                                    accu_typing_time = 0
+                                    thinking_time_point = round(time.time(), 2)
+                                    mark_head = False
+                                    for msg in processed_content:
+                                        # print(f"\033[1;32m[回复内容]\033[0m {msg}")
+                                        # 通过时间改变时间戳
+                                        typing_time = calculate_typing_time(msg)
+                                        logger.debug(f"typing_time: {typing_time}")
+                                        accu_typing_time += typing_time
+                                        timepoint = thinking_time_point + accu_typing_time
+                                        message_segment = Seg(type="text", data=msg)
+                                        # logger.debug(f"message_segment: {message_segment}")
+                                        bot_message = MessageSending(
+                                            message_id=message.message_info.message_id,
+                                            chat_stream=chat_stream,
+                                            bot_user_info=bot_user_info,
+                                            sender_info=bot_user_info,
+                                            message_segment=message_segment,
+                                            reply=None,
+                                            is_head=not mark_head,
+                                            is_emoji=False,
+                                        )
+                                        if not mark_head:
+                                            mark_head = True
+                                        message_set.add_message(bot_message)
+                                        if len(str(bot_message)) < 1000:
+                                            logger.debug(f"bot_message: {bot_message}")
+                                            logger.debug(f"添加消息到message_set: {bot_message}")
+                                        else:
+                                            logger.debug(
+                                                f"bot_message: {str(bot_message)[:1000]}...{str(bot_message)[-10:]}")
+                                            logger.debug(
+                                                f"添加消息到message_set: {str(bot_message)[:1000]}...{str(bot_message)[-10:]}")
                                     message_manager.add_message(message_set)
-                                    logger.info(
-                                        f"群[{group_id}]分享意愿[{share_willing:.2f}]，已生成日常分享并加入发送队列")
+                                    # 创建发送消息对象
+                                    # bot_message = MessageSending(
+                                    #     message_id=message.message_info.message_id,
+                                    #     chat_stream=chat_stream,
+                                    #     bot_user_info=bot_user_info,
+                                    #     sender_info=bot_user_info,
+                                    #     message_segment=message_segment,
+                                    #     reply=None,
+                                    #     is_head=True,
+                                    #     is_emoji=False
+                                    # )
+                                    # await bot_message.process()
+                                    # message_set.add_message(bot_message)
+                                    # message_manager.add_message(message_set)
+                                    # logger.info(
+                                    #     f"群[{group_id}]分享意愿[{share_willing:.2f}]，已生成日常分享并加入发送队列")
 
                                 # 重置该群的分享意愿
-                                await willing_manager.reset_daily_share_wiling(chat_stream)
+                                await willing_manager.reset_daily_share_willing(chat_stream)
                             except Exception as e:
                                 logger.error(f"生成或发送消息时出错: {str(e)}")
                         else:
@@ -123,7 +158,7 @@ class Daily_Sharer:
                 logger.error(f"群[{group_id}]的日常分享任务出错: {str(e)}")
                 await asyncio.sleep(60)  # 出错后等待1分钟再试
 
-    async def share_prompt_builder(self):
+    def share_prompt_builder(self):
         current_date = time.strftime("%Y-%m-%d", time.localtime())
         current_time = time.strftime("%H:%M:%S", time.localtime())
         bot_schedule_now_time, bot_schedule_now_activity = bot_schedule.get_current_task()

@@ -114,6 +114,14 @@ class BotConfig:
         default_factory=lambda: ["表情包", "图片", "回复", "聊天记录"]
     )  # 添加新的配置项默认值
 
+    daily_share_willing: float = 0.3  # 基础分享意愿
+    daily_share_interval: int = 1800  # 日常分享检查间隔（秒）
+    daily_share_time_start: int = 8  # 日常分享开始时间（小时）
+    daily_share_time_end: int = 22  # 日常分享结束时间（小时）
+    daily_share_prompt = ("现在，根据你今天的日程，生成一条日常分享，讲述你的上一个日程是什么，"
+                          "在日程中发生了什么有意思或者值得思考的事情。注意，只需要输出日常分享，不要输出其他任何内容，"
+                          "不要使用破折号和括号，也不要提到之后的日程是什么，字数不要超过50字。")
+
     @staticmethod
     def get_config_dir() -> str:
         """获取配置文件目录"""
@@ -366,6 +374,18 @@ class BotConfig:
             config.talk_frequency_down_groups = set(groups_config.get("talk_frequency_down", []))
             config.ban_user_id = set(groups_config.get("ban_user_id", []))
 
+        def shares(parent: dict):
+            shares_config = parent["shares"]
+            config.daily_share_willing = shares_config.get("daily_share_willing", config.daily_share_willing)
+            config.daily_share_interval = shares_config.get("daily_share_interval", config.daily_share_interval)
+            config.daily_share_time_start = shares_config.get("daily_share_time_start", config.daily_share_time_start)
+            config.daily_share_time_end = shares_config.get("daily_share_time_end", config.daily_share_time_end)
+            config.daily_share_prompt = shares_config.get("daily_share_prompt", config.daily_share_prompt)
+
+        def shares_allow_groups(parent: dict):
+            shares_allow_groups_config = parent["shares_allow_groups"]
+            config.shares_allow_groups = set(shares_allow_groups_config.get("shares_allow_groups", []))
+
         def others(parent: dict):
             others_config = parent["others"]
             # config.enable_advance_output = others_config.get("enable_advance_output", config.enable_advance_output)
@@ -395,6 +415,8 @@ class BotConfig:
             "chinese_typo": {"func": chinese_typo, "support": ">=0.0.3", "necessary": False},
             "groups": {"func": groups, "support": ">=0.0.0"},
             "others": {"func": others, "support": ">=0.0.0"},
+            "shares": {"func": shares, "support": ">=0.0.0"},
+            "shares_allow_groups": {"func": shares_allow_groups, "support": ">=0.0.0"},
         }
 
         # 原地修改，将 字符串版本表达式 转换成 版本对象

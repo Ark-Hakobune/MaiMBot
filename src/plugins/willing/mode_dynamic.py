@@ -989,8 +989,8 @@ class WillingManager:
             
         return intersection / union
 
+    async def check_daily_share_willing(self, chat_stream: ChatStream) -> float:
 
-    async def check_daily_share_wiling(self, chat_stream: ChatStream) -> float:
         """检查群聊消息活跃度，决定是否提高分享日常意愿
             目前仅支持群聊主动发起聊天，私聊不支持
         Args:
@@ -1054,7 +1054,7 @@ class WillingManager:
             logger.error(f"检查群聊活跃度时出错: {str(e)}")
             return global_config.daily_share_willing  # 出错时返回基础分享意愿
 
-    async def reset_daily_share_wiling(self, chat_stream: ChatStream) -> float:
+    async def reset_daily_share_willing(self, chat_stream: ChatStream):
         """重置分享意愿"""
         self.daily_share_wiling[chat_stream.stream_id] = 0
 
