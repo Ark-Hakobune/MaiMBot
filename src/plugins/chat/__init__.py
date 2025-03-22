@@ -18,6 +18,7 @@ from ..memory_system.memory import hippocampus
 from .message_sender import message_manager, message_sender
 from .storage import MessageStorage
 from .topic_identifier import topic_identifier  # 导入话题识别器
+from .Daily_Sharer import Daily_Sharer
 from src.common.logger import get_module_logger
 
 logger = get_module_logger("chat_init")
@@ -60,7 +61,8 @@ async def start_background_tasks():
     logger.info("正在启动话题识别器...")
     await topic_identifier.start_monitoring()
     logger.success("话题识别器启动成功")
-
+    await topic_identifier.stop_monitoring()
+    logger.success("话题识别器关闭成功")
     # 只启动表情包管理任务
     asyncio.create_task(emoji_manager.start_periodic_check(interval_MINS=global_config.EMOJI_CHECK_INTERVAL))
     await bot_schedule.initialize()
